@@ -109,3 +109,8 @@ C:\Users\sushi\Desktop\smtechnology\sm app\sm-be\sm-be\bin\Debug\net8.0\tr\Micro
 C:\Users\sushi\Desktop\smtechnology\sm app\sm-be\sm-be\bin\Debug\net8.0\zh-Hans\Microsoft.CodeAnalysis.Workspaces.resources.dll
 C:\Users\sushi\Desktop\smtechnology\sm app\sm-be\sm-be\bin\Debug\net8.0\zh-Hant\Microsoft.CodeAnalysis.Workspaces.resources.dll
 C:\Users\sushi\Desktop\smtechnology\sm app\sm-be\sm-be\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt
+C:\Users\sushi\Desktop\smtechnology\sm app\sm-be\sm-be\obj\Debug\net8.0\rpswa.dswa.cache.json
+C:\Users\sushi\Desktop\smtechnology\sm app\sm-be\sm-be\obj\Debug\net8.0\sm-be.sourcelink.json
+C:\Users\sushi\Desktop\smtechnology\sm app\sm-be\sm-be\obj\Debug\net8.0\rjimswa.dswa.cache.json
+C:\Users\sushi\Desktop\smtechnology\sm app\sm-be\sm-be\obj\Debug\net8.0\rjsmrazor.dswa.cache.json
+C:\Users\sushi\Desktop\smtechnology\sm app\sm-be\sm-be\obj\Debug\net8.0\rjsmcshtml.dswa.cache.json
