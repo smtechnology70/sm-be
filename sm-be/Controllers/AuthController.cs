@@ -17,12 +17,14 @@ namespace SM_BE.Controllers
         private readonly AppDbContext _context;
         private readonly IJwtService _jwtService;
         private readonly IConfiguration _configuration;
+        private readonly IWebHostEnvironment _environment;
 
-        public AuthController(AppDbContext context, IJwtService jwtService, IConfiguration configuration)
+        public AuthController(AppDbContext context, IJwtService jwtService, IConfiguration configuration, IWebHostEnvironment environment)
         {
             _context = context;
             _jwtService = jwtService;
             _configuration = configuration;
+            _environment = environment;
         }
 
         [HttpPost("register")]
@@ -89,21 +91,8 @@ namespace SM_BE.Controllers
             var refreshTokenExpiry = DateTime.UtcNow.AddDays(
                 int.Parse(_configuration.GetSection("JwtSettings")["RefreshTokenExpirationDays"] ?? "7"));
 
-            Response.Cookies.Append("access_token", accessToken, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true, // Only send over HTTPS
-                SameSite = SameSiteMode.Strict,
-                Expires = accessTokenExpiry
-            });
-
-            Response.Cookies.Append("refresh_token", refreshToken, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
-                Expires = refreshTokenExpiry
-            });
+            Response.Cookies.Append("access_token", accessToken, GetCookieOptions(accessTokenExpiry));
+            Response.Cookies.Append("refresh_token", refreshToken, GetCookieOptions(refreshTokenExpiry));
 
             var response = new AuthResponseDto
             {
@@ -169,21 +158,8 @@ namespace SM_BE.Controllers
             var refreshTokenExpiry = DateTime.UtcNow.AddDays(
                 int.Parse(_configuration.GetSection("JwtSettings")["RefreshTokenExpirationDays"] ?? "7"));
 
-            Response.Cookies.Append("access_token", newAccessToken, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
-                Expires = accessTokenExpiry
-            });
-
-            Response.Cookies.Append("refresh_token", newRefreshToken, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
-                Expires = refreshTokenExpiry
-            });
+            Response.Cookies.Append("access_token", newAccessToken, GetCookieOptions(accessTokenExpiry));
+            Response.Cookies.Append("refresh_token", newRefreshToken, GetCookieOptions(refreshTokenExpiry));
 
             var response = new AuthResponseDto
             {
@@ -225,6 +201,21 @@ namespace SM_BE.Controllers
             using var sha256 = SHA256.Create();
             var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(rawData));
             return Convert.ToBase64String(bytes);
+        }
+
+        private CookieOptions GetCookieOptions(DateTime expiry)
+        {
+            var isProduction = !_environment.IsDevelopment();
+            
+            return new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = isProduction, // Only secure in production (HTTPS)
+                SameSite = SameSiteMode.Lax,
+                Expires = expiry,
+                Path = "/",
+                Domain = null
+            };
         }
     }
 }

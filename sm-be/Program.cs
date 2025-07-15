@@ -29,6 +29,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         {
             OnMessageReceived = context =>
             {
+                // Log cookie presence for debugging
+                var cookieToken = context.Request.Cookies["access_token"];
+                if (!string.IsNullOrEmpty(cookieToken))
+                {
+                    Console.WriteLine($"Cookie token found: {cookieToken.Substring(0, Math.Min(20, cookieToken.Length))}...");
+                }
+                else
+                {
+                    Console.WriteLine("No cookie token found");
+                }
+
                 // For regular HTTP requests, read token from cookie
                 var token = context.Request.Cookies["access_token"];
                 
@@ -50,7 +61,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 if (!string.IsNullOrEmpty(token))
                 {
                     context.Token = token;
+                    Console.WriteLine("Token set in context");
                 }
+                else
+                {
+                    Console.WriteLine("No token available");
+                }
+                return Task.CompletedTask;
+            },
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine($"Authentication failed: {context.Exception}");
                 return Task.CompletedTask;
             }
         };
@@ -77,7 +98,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000,http://20.40.57.127")
+        policy.WithOrigins("http://localhost:3000", "http://20.40.57.127", "https://20.40.57.127")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials(); // Required for cookies

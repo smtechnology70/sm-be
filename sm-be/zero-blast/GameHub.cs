@@ -347,8 +347,13 @@ namespace SM_BE.Hubs
         {
             try
             {
+                Console.WriteLine("=== GetPlayerIdFromToken Debug ===");
+                
                 // Method 1: Get from JWT claims in the authenticated context
                 var userIdClaim = Context.User?.FindFirst("userId");
+                Console.WriteLine($"User claims count: {Context.User?.Claims?.Count() ?? 0}");
+                Console.WriteLine($"UserId claim found: {userIdClaim != null}");
+                
                 if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
                 {
                     Console.WriteLine($"Found userId in claims: {userId}");
@@ -357,16 +362,41 @@ namespace SM_BE.Hubs
 
                 // Method 2: Try to get the token from the connection and validate it manually
                 var accessToken = Context.GetHttpContext()?.Request.Cookies["access_token"];
+                Console.WriteLine($"Access token from cookies: {!string.IsNullOrEmpty(accessToken)}");
+                
                 if (!string.IsNullOrEmpty(accessToken))
                 {
                     Console.WriteLine("Found access token in cookies, validating...");
-                    if (_jwtService.ValidateToken(accessToken))
+                    var isValid = _jwtService.ValidateToken(accessToken);
+                    Console.WriteLine($"Token validation result: {isValid}");
+                    
+                    if (isValid)
                     {
                         var userIdFromToken = _jwtService.GetUserIdFromToken(accessToken);
+                        Console.WriteLine($"UserId from token: {userIdFromToken}");
+                        
                         if (userIdFromToken.HasValue)
                         {
                             Console.WriteLine($"Extracted userId from token: {userIdFromToken}");
                             return userIdFromToken;
+                        }
+                    }
+                }
+
+                // Method 3: Try query string (fallback)
+                var queryToken = Context.GetHttpContext()?.Request.Query["access_token"];
+                Console.WriteLine($"Query token available: {!string.IsNullOrEmpty(queryToken)}");
+                
+                if (!string.IsNullOrEmpty(queryToken))
+                {
+                    Console.WriteLine("Trying query token...");
+                    if (_jwtService.ValidateToken(queryToken))
+                    {
+                        var userIdFromQuery = _jwtService.GetUserIdFromToken(queryToken);
+                        if (userIdFromQuery.HasValue)
+                        {
+                            Console.WriteLine($"Extracted userId from query token: {userIdFromQuery}");
+                            return userIdFromQuery;
                         }
                     }
                 }
@@ -389,10 +419,27 @@ namespace SM_BE.Hubs
             var isAuthenticated = Context.User?.Identity?.IsAuthenticated ?? false;
             Console.WriteLine($"User authenticated: {isAuthenticated}");
             
+            // Check for cookies
+            var cookieToken = Context.GetHttpContext()?.Request.Cookies["access_token"];
+            Console.WriteLine($"Cookie token present: {!string.IsNullOrEmpty(cookieToken)}");
+            
+            // Check for query string token
+            var queryToken = Context.GetHttpContext()?.Request.Query["access_token"];
+            Console.WriteLine($"Query token present: {!string.IsNullOrEmpty(queryToken)}");
+            
             if (isAuthenticated)
             {
                 var userId = GetPlayerIdFromToken();
                 Console.WriteLine($"Authenticated user ID: {userId}");
+                
+                // Log all claims
+                if (Context.User?.Claims != null)
+                {
+                    foreach (var claim in Context.User.Claims)
+                    {
+                        Console.WriteLine($"Claim: {claim.Type} = {claim.Value}");
+                    }
+                }
             }
             
             await base.OnConnectedAsync();
