@@ -29,43 +29,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         {
             OnMessageReceived = context =>
             {
-                // Log cookie presence for debugging
-                var cookieToken = context.Request.Cookies["access_token"];
-                if (!string.IsNullOrEmpty(cookieToken))
+                // For SignalR connections, check query string for access token
+                if (context.Request.Path.StartsWithSegments("/zero-blast"))
                 {
-                    Console.WriteLine($"Cookie token found: {cookieToken.Substring(0, Math.Min(20, cookieToken.Length))}...");
-                }
-                else
-                {
-                    Console.WriteLine("No cookie token found");
-                }
-
-                // For regular HTTP requests, read token from cookie
-                var token = context.Request.Cookies["access_token"];
-                
-                // For SignalR connections, also check cookies
-                if (string.IsNullOrEmpty(token) && 
-                    (context.Request.Path.StartsWithSegments("/zero-blast") || 
-                     context.Request.Headers["Connection"].ToString().Contains("Upgrade")))
-                {
-                    // Try to get token from cookie for SignalR
-                    token = context.Request.Cookies["access_token"];
-                    
-                    // Fallback: check query string (if frontend sends it)
-                    if (string.IsNullOrEmpty(token))
+                    var accessToken = context.Request.Query["access_token"];
+                    if (!string.IsNullOrEmpty(accessToken))
                     {
-                        token = context.Request.Query["access_token"];
+                        context.Token = accessToken;
                     }
-                }
-                
-                if (!string.IsNullOrEmpty(token))
-                {
-                    context.Token = token;
-                    Console.WriteLine("Token set in context");
-                }
-                else
-                {
-                    Console.WriteLine("No token available");
                 }
                 return Task.CompletedTask;
             },
@@ -93,15 +64,18 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Add CORS policy
+// Add CORS policy with more comprehensive configuration
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://20.40.57.127", "https://20.40.57.127")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials(); // Required for cookies
+        policy.WithOrigins(
+                "http://localhost:3000"
+            )
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .SetIsOriginAllowed(origin => true) // Allow any origin during development
+            .AllowCredentials(); // Add this if you need credentials
     });
 });
 
@@ -121,7 +95,8 @@ if (app.Environment.IsDevelopment())
     app.UseDeveloperExceptionPage();
 }
 
-app.UseHttpsRedirection();
+// Comment out HTTPS redirection if you're having issues
+// app.UseHttpsRedirection();
 
 // Use CORS before authorization and endpoints
 app.UseCors("AllowFrontend");
@@ -131,7 +106,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// Map SignalR hub
+// Map SignalR hub with CORS
 app.MapHub<GameHub>("/zero-blast");
 
 app.Run();

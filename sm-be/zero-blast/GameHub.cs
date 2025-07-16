@@ -360,13 +360,13 @@ namespace SM_BE.Hubs
                     return userId;
                 }
 
-                // Method 2: Try to get the token from the connection and validate it manually
-                var accessToken = Context.GetHttpContext()?.Request.Cookies["access_token"];
-                Console.WriteLine($"Access token from cookies: {!string.IsNullOrEmpty(accessToken)}");
+                // Method 2: Try to get the token from the query string and validate it manually
+                var accessToken = Context.GetHttpContext()?.Request.Query["access_token"];
+                Console.WriteLine($"Access token from query: {!string.IsNullOrEmpty(accessToken)}");
                 
                 if (!string.IsNullOrEmpty(accessToken))
                 {
-                    Console.WriteLine("Found access token in cookies, validating...");
+                    Console.WriteLine("Found access token in query string, validating...");
                     var isValid = _jwtService.ValidateToken(accessToken);
                     Console.WriteLine($"Token validation result: {isValid}");
                     
@@ -379,24 +379,6 @@ namespace SM_BE.Hubs
                         {
                             Console.WriteLine($"Extracted userId from token: {userIdFromToken}");
                             return userIdFromToken;
-                        }
-                    }
-                }
-
-                // Method 3: Try query string (fallback)
-                var queryToken = Context.GetHttpContext()?.Request.Query["access_token"];
-                Console.WriteLine($"Query token available: {!string.IsNullOrEmpty(queryToken)}");
-                
-                if (!string.IsNullOrEmpty(queryToken))
-                {
-                    Console.WriteLine("Trying query token...");
-                    if (_jwtService.ValidateToken(queryToken))
-                    {
-                        var userIdFromQuery = _jwtService.GetUserIdFromToken(queryToken);
-                        if (userIdFromQuery.HasValue)
-                        {
-                            Console.WriteLine($"Extracted userId from query token: {userIdFromQuery}");
-                            return userIdFromQuery;
                         }
                     }
                 }
@@ -418,10 +400,6 @@ namespace SM_BE.Hubs
             // Log authentication status
             var isAuthenticated = Context.User?.Identity?.IsAuthenticated ?? false;
             Console.WriteLine($"User authenticated: {isAuthenticated}");
-            
-            // Check for cookies
-            var cookieToken = Context.GetHttpContext()?.Request.Cookies["access_token"];
-            Console.WriteLine($"Cookie token present: {!string.IsNullOrEmpty(cookieToken)}");
             
             // Check for query string token
             var queryToken = Context.GetHttpContext()?.Request.Query["access_token"];

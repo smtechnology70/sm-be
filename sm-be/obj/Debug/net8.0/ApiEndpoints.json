@@ -42,7 +42,13 @@
     "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,
-    "Parameters": [],
+    "Parameters": [
+      {
+        "Name": "refreshTokenDto",
+        "Type": "SM_BE.Dto.RefreshTokenDto",
+        "IsRequired": true
+      }
+    ],
     "ReturnTypes": []
   },
   {

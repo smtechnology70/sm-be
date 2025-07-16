@@ -17,14 +17,12 @@ namespace SM_BE.Controllers
         private readonly AppDbContext _context;
         private readonly IJwtService _jwtService;
         private readonly IConfiguration _configuration;
-        private readonly IWebHostEnvironment _environment;
 
-        public AuthController(AppDbContext context, IJwtService jwtService, IConfiguration configuration, IWebHostEnvironment environment)
+        public AuthController(AppDbContext context, IJwtService jwtService, IConfiguration configuration)
         {
             _context = context;
             _jwtService = jwtService;
             _configuration = configuration;
-            _environment = environment;
         }
 
         [HttpPost("register")]
@@ -85,19 +83,13 @@ namespace SM_BE.Controllers
 
             await _context.SaveChangesAsync();
 
-            // Set HTTP-only cookies instead of returning tokens in response
             var accessTokenExpiry = DateTime.UtcNow.AddMinutes(
                 int.Parse(_configuration.GetSection("JwtSettings")["AccessTokenExpirationMinutes"] ?? "30"));
-            var refreshTokenExpiry = DateTime.UtcNow.AddDays(
-                int.Parse(_configuration.GetSection("JwtSettings")["RefreshTokenExpirationDays"] ?? "7"));
-
-            Response.Cookies.Append("access_token", accessToken, GetCookieOptions(accessTokenExpiry));
-            Response.Cookies.Append("refresh_token", refreshToken, GetCookieOptions(refreshTokenExpiry));
 
             var response = new AuthResponseDto
             {
-                AccessToken = "", // Don't send token in response
-                RefreshToken = "", // Don't send token in response
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
                 AccessTokenExpiration = accessTokenExpiry,
             };
 
@@ -128,15 +120,13 @@ namespace SM_BE.Controllers
         }
 
         [HttpPost("refresh")]
-        public async Task<IActionResult> RefreshToken()
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenDto refreshTokenDto)
         {
-            // Get refresh token from cookie instead of request body
-            if (!Request.Cookies.TryGetValue("refresh_token", out string? refreshToken) || 
-                string.IsNullOrEmpty(refreshToken))
+            if (string.IsNullOrEmpty(refreshTokenDto.RefreshToken))
                 return BadRequest("Refresh token is required.");
 
             var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
+                .FirstOrDefaultAsync(u => u.RefreshToken == refreshTokenDto.RefreshToken);
 
             if (user == null || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
                 return Unauthorized("Invalid or expired refresh token.");
@@ -152,21 +142,14 @@ namespace SM_BE.Controllers
 
             await _context.SaveChangesAsync();
 
-            // Set new HTTP-only cookies
             var accessTokenExpiry = DateTime.UtcNow.AddMinutes(
                 int.Parse(_configuration.GetSection("JwtSettings")["AccessTokenExpirationMinutes"] ?? "30"));
-            var refreshTokenExpiry = DateTime.UtcNow.AddDays(
-                int.Parse(_configuration.GetSection("JwtSettings")["RefreshTokenExpirationDays"] ?? "7"));
-
-            Response.Cookies.Append("access_token", newAccessToken, GetCookieOptions(accessTokenExpiry));
-            Response.Cookies.Append("refresh_token", newRefreshToken, GetCookieOptions(refreshTokenExpiry));
 
             var response = new AuthResponseDto
             {
-                AccessToken = "",
-                RefreshToken = "",
+                AccessToken = newAccessToken,
+                RefreshToken = newRefreshToken,
                 AccessTokenExpiration = accessTokenExpiry,
-                
             };
 
             return Ok(response);
@@ -188,10 +171,6 @@ namespace SM_BE.Controllers
                 await _context.SaveChangesAsync();
             }
 
-            // Clear cookies
-            Response.Cookies.Delete("access_token");
-            Response.Cookies.Delete("refresh_token");
-
             return Ok("Logged out successfully!");
         }
 
@@ -201,21 +180,6 @@ namespace SM_BE.Controllers
             using var sha256 = SHA256.Create();
             var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(rawData));
             return Convert.ToBase64String(bytes);
-        }
-
-        private CookieOptions GetCookieOptions(DateTime expiry)
-        {
-            var isProduction = !_environment.IsDevelopment();
-            
-            return new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = isProduction, // Only secure in production (HTTPS)
-                SameSite = SameSiteMode.Lax,
-                Expires = expiry,
-                Path = "/",
-                Domain = null
-            };
         }
     }
 }
