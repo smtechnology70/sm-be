@@ -8,6 +8,12 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure Kestrel to listen on all interfaces
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.ListenAnyIP(80); // Listen on port 80 for all IP addresses
+});
+
 // Add services to the container.
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(
@@ -64,29 +70,31 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Add CORS policy with comprehensive configuration for SignalR
+// Add CORS policy - More permissive for production troubleshooting
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy.WithOrigins(
                 "http://localhost:3000",
-                "http://20.40.57.127"  // Add your server IP
+                "http://20.40.57.127",
+                "https://20.40.57.127"
             )
             .AllowAnyMethod()
             .AllowAnyHeader()
-            .AllowCredentials() // Required for SignalR
-            .SetIsOriginAllowed(origin => true); // Allow any origin during development
+            .AllowCredentials()
+            .SetIsOriginAllowed(origin => true);
     });
 });
 
-// Add SignalR service
+// Add SignalR service with production-ready configuration
 builder.Services.AddSignalR(options =>
 {
     options.EnableDetailedErrors = true;
     options.KeepAliveInterval = TimeSpan.FromSeconds(15);
-    options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
-    options.HandshakeTimeout = TimeSpan.FromSeconds(15);
+    options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
+    options.HandshakeTimeout = TimeSpan.FromSeconds(30);
+    options.MaximumReceiveMessageSize = 32 * 1024;
 });
 
 var app = builder.Build();
@@ -99,15 +107,24 @@ if (app.Environment.IsDevelopment())
     app.UseDeveloperExceptionPage();
 }
 
-// Enable WebSocket support
+// Enable WebSocket support with production settings
 app.UseWebSockets(new WebSocketOptions
 {
     KeepAliveInterval = TimeSpan.FromSeconds(120),
-    ReceiveBufferSize = 4 * 1024
+    ReceiveBufferSize = 4 * 1024,
+    // Important: Add allowed origins for WebSocket connections
+    AllowedOrigins = { "http://20.40.57.127", "https://20.40.57.127" }
 });
 
 // Use CORS before authentication and authorization
 app.UseCors("AllowFrontend");
+
+// Add forwarded headers for reverse proxy scenarios
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor | 
+                      Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
+});
 
 app.UseAuthentication();
 app.UseAuthorization();
