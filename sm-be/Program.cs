@@ -64,13 +64,24 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Add CORS policy - Allow all origins, methods, and headers
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader();
+    });
+});
+
 // Add SignalR
 builder.Services.AddSignalR(options =>
 {
     options.EnableDetailedErrors = true;
 });
 
-var app = builder.Build();  
+var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -83,12 +94,15 @@ if (app.Environment.IsDevelopment())
 // Comment out HTTPS redirection if you're having issues
 // app.UseHttpsRedirection();
 
+// Use CORS (applies default policy)
+app.UseCors();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
-// Map SignalR hub
+// Map SignalR hub with CORS
 app.MapHub<GameHub>("/zero-blast");
 
 app.Run();
