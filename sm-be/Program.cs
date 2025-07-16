@@ -8,12 +8,6 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Kestrel to listen on all interfaces
-builder.WebHost.ConfigureKestrel(serverOptions =>
-{
-    serverOptions.ListenAnyIP(80); // Listen on port 80 for all IP addresses
-});
-
 // Add services to the container.
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(
@@ -70,31 +64,25 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Add CORS policy - More permissive for production troubleshooting
+// Add CORS policy with more comprehensive configuration
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy.WithOrigins(
-                "http://localhost:3000",
-                "http://20.40.57.127",
-                "https://20.40.57.127"
+                "http://localhost:3000"
             )
             .AllowAnyMethod()
             .AllowAnyHeader()
-            .AllowCredentials()
-            .SetIsOriginAllowed(origin => true);
+            .SetIsOriginAllowed(origin => true) // Allow any origin during development
+            .AllowCredentials(); // Add this if you need credentials
     });
 });
 
-// Add SignalR service with production-ready configuration
+// Add SignalR
 builder.Services.AddSignalR(options =>
 {
     options.EnableDetailedErrors = true;
-    options.KeepAliveInterval = TimeSpan.FromSeconds(15);
-    options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
-    options.HandshakeTimeout = TimeSpan.FromSeconds(30);
-    options.MaximumReceiveMessageSize = 32 * 1024;
 });
 
 var app = builder.Build();
@@ -107,31 +95,18 @@ if (app.Environment.IsDevelopment())
     app.UseDeveloperExceptionPage();
 }
 
-// Enable WebSocket support with production settings
-app.UseWebSockets(new WebSocketOptions
-{
-    KeepAliveInterval = TimeSpan.FromSeconds(120),
-    ReceiveBufferSize = 4 * 1024,
-    // Important: Add allowed origins for WebSocket connections
-    AllowedOrigins = { "http://20.40.57.127", "https://20.40.57.127" }
-});
+// Comment out HTTPS redirection if you're having issues
+// app.UseHttpsRedirection();
 
-// Use CORS before authentication and authorization
+// Use CORS before authorization and endpoints
 app.UseCors("AllowFrontend");
-
-// Add forwarded headers for reverse proxy scenarios
-app.UseForwardedHeaders(new ForwardedHeadersOptions
-{
-    ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor | 
-                      Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
-});
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
-// Map SignalR hub
+// Map SignalR hub with CORS
 app.MapHub<GameHub>("/zero-blast");
 
 app.Run();
