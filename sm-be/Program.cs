@@ -107,6 +107,6 @@ app.UseAuthorization();
 app.MapControllers();
 
 // Map SignalR hub with CORS
-app.MapHub<GameHub>("/zero-blast");
+app.MapHub<GameHub>("/api/zero-blast");
 
 app.Run();
