@@ -64,15 +64,14 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Add CORS policy with more comprehensive configuration
+// Add CORS policy - Allow all origins, methods, and headers
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend", policy =>
+    options.AddDefaultPolicy(policy =>
     {
         policy.AllowAnyOrigin()
             .AllowAnyMethod()
             .AllowAnyHeader();
-            
     });
 });
 
@@ -95,8 +94,8 @@ if (app.Environment.IsDevelopment())
 // Comment out HTTPS redirection if you're having issues
 // app.UseHttpsRedirection();
 
-// Use CORS before authorization and endpoints
-app.UseCors("AllowFrontend");
+// Use CORS (applies default policy)
+app.UseCors();
 
 app.UseAuthentication();
 app.UseAuthorization();
