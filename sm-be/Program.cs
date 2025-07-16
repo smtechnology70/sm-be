@@ -64,25 +64,29 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Add CORS policy with more comprehensive configuration
+// Add CORS policy with comprehensive configuration for SignalR
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy.WithOrigins(
-                "http://localhost:3000"
+                "http://localhost:3000",
+                "http://20.40.57.127"  // Add your server IP
             )
             .AllowAnyMethod()
             .AllowAnyHeader()
-            .SetIsOriginAllowed(origin => true) // Allow any origin during development
-            .AllowCredentials(); // Add this if you need credentials
+            .AllowCredentials() // Required for SignalR
+            .SetIsOriginAllowed(origin => true); // Allow any origin during development
     });
 });
 
-// Add SignalR
+// Add SignalR service
 builder.Services.AddSignalR(options =>
 {
     options.EnableDetailedErrors = true;
+    options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+    options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
+    options.HandshakeTimeout = TimeSpan.FromSeconds(15);
 });
 
 var app = builder.Build();
@@ -95,10 +99,14 @@ if (app.Environment.IsDevelopment())
     app.UseDeveloperExceptionPage();
 }
 
-// Comment out HTTPS redirection if you're having issues
-// app.UseHttpsRedirection();
+// Enable WebSocket support
+app.UseWebSockets(new WebSocketOptions
+{
+    KeepAliveInterval = TimeSpan.FromSeconds(120),
+    ReceiveBufferSize = 4 * 1024
+});
 
-// Use CORS before authorization and endpoints
+// Use CORS before authentication and authorization
 app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
@@ -106,7 +114,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// Map SignalR hub with CORS
+// Map SignalR hub
 app.MapHub<GameHub>("/zero-blast");
 
 app.Run();
