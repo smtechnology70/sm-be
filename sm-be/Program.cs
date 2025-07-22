@@ -30,7 +30,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             OnMessageReceived = context =>
             {
                 // For SignalR connections, check query string for access token
-                if (context.Request.Path.StartsWithSegments("/zero-blast"))
+                if (context.Request.Path.StartsWithSegments("/zero-blast") || 
+                    context.Request.Path.StartsWithSegments("/single-number-game"))
                 {
                     var accessToken = context.Request.Query["access_token"];
                     if (!string.IsNullOrEmpty(accessToken))
@@ -64,18 +65,19 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Add CORS policy - Allow all origins, methods, and headers
+// Add CORS policy - Allow all origins, methods, and headers with explicit configuration for SignalR
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.SetIsOriginAllowed(origin => true) // Allow any origin
             .AllowAnyMethod()
-            .AllowAnyHeader();
+            .AllowAnyHeader()
+            .AllowCredentials(); // Required for SignalR
     });
 });
 
-// Add SignalR
+// Add SignalR with CORS support
 builder.Services.AddSignalR(options =>
 {
     options.EnableDetailedErrors = true;
@@ -94,7 +96,7 @@ if (app.Environment.IsDevelopment())
 // Comment out HTTPS redirection if you're having issues
 // app.UseHttpsRedirection();
 
-// Use CORS (applies default policy)
+// Use CORS (applies default policy) - Must be before UseAuthentication
 app.UseCors();
 
 app.UseAuthentication();
@@ -102,7 +104,8 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// Map SignalR hub with CORS
+// Map SignalR hubs - CORS is already applied globally
 app.MapHub<GameHub>("/zero-blast");
+app.MapHub<SingleGameHub>("/single-number-game");
 
 app.Run();
