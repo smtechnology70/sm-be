@@ -30,7 +30,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             OnMessageReceived = context =>
             {
                 // For SignalR connections, check query string for access token
-                if (context.Request.Path.StartsWithSegments("/zero-blast"))
+                if (context.Request.Path.StartsWithSegments("/zero-blast") || 
+                    context.Request.Path.StartsWithSegments("/single-number-game"))
                 {
                     var accessToken = context.Request.Query["access_token"];
                     if (!string.IsNullOrEmpty(accessToken))
@@ -103,7 +104,8 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// Map SignalR hub - CORS is already applied globally
+// Map SignalR hubs - CORS is already applied globally
 app.MapHub<GameHub>("/zero-blast");
+app.MapHub<SingleGameHub>("/single-number-game");
 
 app.Run();
