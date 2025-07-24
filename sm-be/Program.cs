@@ -5,6 +5,9 @@ using SM_BE.Data;
 using SM_BE.Services;
 using SM_BE.Hubs;
 using System.Text;
+using sm_be.Services.lottery;
+using sm_be.Services.MinimumNumberCount;
+using sm_be.MinimumNumberCount;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,8 +18,23 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
     ));
 
-// Add JWT Service
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll",
+        builder => builder
+            .AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader());
+});
+
+// Add services
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IDailyNumberService, DailyNumberService>();
+builder.Services.AddScoped<IDailyDigitGameService, DailyDigitGameService>();
+
+// Add background service for daily number management
+builder.Services.AddHostedService<DailyNumberBackgroundService>();
+builder.Services.AddHostedService<DailyDigitGameBackgroundService>();
 
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -31,7 +49,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             {
                 // For SignalR connections, check query string for access token
                 if (context.Request.Path.StartsWithSegments("/zero-blast") || 
-                    context.Request.Path.StartsWithSegments("/single-number-game"))
+                    context.Request.Path.StartsWithSegments("/single-number-game") ||
+                    context.Request.Path.StartsWithSegments("/daily-number-game") ||
+                    context.Request.Path.StartsWithSegments("/dailyDigitGameHub")) // Added this line
                 {
                     var accessToken = context.Request.Query["access_token"];
                     if (!string.IsNullOrEmpty(accessToken))
@@ -107,5 +127,7 @@ app.MapControllers();
 // Map SignalR hubs - CORS is already applied globally
 app.MapHub<GameHub>("/zero-blast");
 app.MapHub<SingleGameHub>("/single-number-game");
+app.MapHub<DailyNumberHub>("/daily-number-game");
+app.MapHub<DailyDigitGameHub>("/dailyDigitGameHub");
 
 app.Run();

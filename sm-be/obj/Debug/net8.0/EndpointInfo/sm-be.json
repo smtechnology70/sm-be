@@ -121,6 +121,186 @@
           }
         }
       }
+    },
+    "/api/DailyDigitGame/today": {
+      "get": {
+        "tags": [
+          "DailyDigitGame"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/DailyDigitGame/submit-digit": {
+      "post": {
+        "tags": [
+          "DailyDigitGame"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitDigitRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitDigitRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitDigitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/DailyDigitGame/winners/today": {
+      "get": {
+        "tags": [
+          "DailyDigitGame"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/DailyDigitGame/digit-counts": {
+      "get": {
+        "tags": [
+          "DailyDigitGame"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/DailyDigitGame/recent-games": {
+      "get": {
+        "tags": [
+          "DailyDigitGame"
+        ],
+        "parameters": [
+          {
+            "name": "count",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/DailyDigitGame/my-selection": {
+      "get": {
+        "tags": [
+          "DailyDigitGame"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/DailyNumber/today": {
+      "get": {
+        "tags": [
+          "DailyNumber"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/DailyNumber/submit-guess": {
+      "post": {
+        "tags": [
+          "DailyNumber"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitGuessRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitGuessRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitGuessRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/DailyNumber/winners/today": {
+      "get": {
+        "tags": [
+          "DailyNumber"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/DailyNumber/recent-games": {
+      "get": {
+        "tags": [
+          "DailyNumber"
+        ],
+        "parameters": [
+          {
+            "name": "count",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -163,6 +343,26 @@
           "password": {
             "type": "string",
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SubmitDigitRequest": {
+        "type": "object",
+        "properties": {
+          "selectedDigit": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SubmitGuessRequest": {
+        "type": "object",
+        "properties": {
+          "guessedNumber": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false

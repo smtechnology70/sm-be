@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SM_BE.Data;
 
@@ -10,9 +11,11 @@ using SM_BE.Data;
 namespace sm_be.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250723185001_AddLotteryTables")]
+    partial class AddLotteryTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -112,76 +115,6 @@ namespace sm_be.Migrations
                     b.ToTable("users", (string)null);
                 });
 
-            modelBuilder.Entity("sm_be.Models.MinimumNumberCount.DailyDigitGame", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("completed_at");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("date");
-
-                    b.Property<bool>("IsCompleted")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("is_completed");
-
-                    b.Property<int?>("WinningDigit")
-                        .HasColumnType("int")
-                        .HasColumnName("winning_digit");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Date")
-                        .IsUnique();
-
-                    b.ToTable("daily_digit_games", (string)null);
-                });
-
-            modelBuilder.Entity("sm_be.Models.MinimumNumberCount.PlayerDigitEntry", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    b.Property<int>("DailyDigitGameId")
-                        .HasColumnType("int")
-                        .HasColumnName("daily_digit_game_id");
-
-                    b.Property<DateTime>("EntryTime")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("entry_time");
-
-                    b.Property<bool>("IsWinner")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("is_winner");
-
-                    b.Property<int>("SelectedDigit")
-                        .HasColumnType("int")
-                        .HasColumnName("selected_digit");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DailyDigitGameId");
-
-                    b.HasIndex("UserId", "DailyDigitGameId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_PlayerDigitEntries_UserId_DailyDigitGameId");
-
-                    b.ToTable("player_digit_entries", (string)null);
-                });
-
             modelBuilder.Entity("SM_BE.Models.Lottery.PlayerEntry", b =>
                 {
                     b.HasOne("SM_BE.Models.Lottery.DailyNumber", "DailyNumber")
@@ -203,35 +136,9 @@ namespace sm_be.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("sm_be.Models.MinimumNumberCount.PlayerDigitEntry", b =>
-                {
-                    b.HasOne("sm_be.Models.MinimumNumberCount.DailyDigitGame", "DailyDigitGame")
-                        .WithMany("PlayerDigitEntries")
-                        .HasForeignKey("DailyDigitGameId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_PlayerDigitEntries_DailyDigitGames");
-
-                    b.HasOne("SM_BE.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_PlayerDigitEntries_Users");
-
-                    b.Navigation("DailyDigitGame");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("SM_BE.Models.Lottery.DailyNumber", b =>
                 {
                     b.Navigation("PlayerEntries");
-                });
-
-            modelBuilder.Entity("sm_be.Models.MinimumNumberCount.DailyDigitGame", b =>
-                {
-                    b.Navigation("PlayerDigitEntries");
                 });
 #pragma warning restore 612, 618
         }
