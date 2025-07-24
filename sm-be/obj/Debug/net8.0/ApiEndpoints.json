@@ -66,5 +66,57 @@
       }
     ],
     "ReturnTypes": []
+  },
+  {
+    "ContainingType": "sm_be.Controllers.lottery.DailyNumberController",
+    "Method": "GetRecentGames",
+    "RelativePath": "api/DailyNumber/recent-games",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "count",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "sm_be.Controllers.lottery.DailyNumberController",
+    "Method": "SubmitGuess",
+    "RelativePath": "api/DailyNumber/submit-guess",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "sm_be.Controllers.lottery.SubmitGuessRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "sm_be.Controllers.lottery.DailyNumberController",
+    "Method": "GetTodaysGame",
+    "RelativePath": "api/DailyNumber/today",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "sm_be.Controllers.lottery.DailyNumberController",
+    "Method": "GetTodaysWinners",
+    "RelativePath": "api/DailyNumber/winners/today",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
   }
 ]

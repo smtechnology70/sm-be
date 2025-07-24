@@ -5,6 +5,7 @@ using SM_BE.Data;
 using SM_BE.Services;
 using SM_BE.Hubs;
 using System.Text;
+using sm_be.Services.lottery;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,8 +16,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
     ));
 
-// Add JWT Service
+// Add services
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IDailyNumberService, DailyNumberService>();
+
+// Add background service for daily number management
+builder.Services.AddHostedService<DailyNumberBackgroundService>();
 
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -31,7 +36,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             {
                 // For SignalR connections, check query string for access token
                 if (context.Request.Path.StartsWithSegments("/zero-blast") || 
-                    context.Request.Path.StartsWithSegments("/single-number-game"))
+                    context.Request.Path.StartsWithSegments("/single-number-game") ||
+                    context.Request.Path.StartsWithSegments("/daily-number-game"))
                 {
                     var accessToken = context.Request.Query["access_token"];
                     if (!string.IsNullOrEmpty(accessToken))
@@ -107,5 +113,6 @@ app.MapControllers();
 // Map SignalR hubs - CORS is already applied globally
 app.MapHub<GameHub>("/zero-blast");
 app.MapHub<SingleGameHub>("/single-number-game");
+app.MapHub<DailyNumberHub>("/daily-number-game");
 
 app.Run();

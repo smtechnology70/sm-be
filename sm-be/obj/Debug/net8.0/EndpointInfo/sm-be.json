@@ -121,6 +121,84 @@
           }
         }
       }
+    },
+    "/api/DailyNumber/today": {
+      "get": {
+        "tags": [
+          "DailyNumber"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/DailyNumber/submit-guess": {
+      "post": {
+        "tags": [
+          "DailyNumber"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitGuessRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitGuessRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitGuessRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/DailyNumber/winners/today": {
+      "get": {
+        "tags": [
+          "DailyNumber"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/DailyNumber/recent-games": {
+      "get": {
+        "tags": [
+          "DailyNumber"
+        ],
+        "parameters": [
+          {
+            "name": "count",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -163,6 +241,16 @@
           "password": {
             "type": "string",
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SubmitGuessRequest": {
+        "type": "object",
+        "properties": {
+          "guessedNumber": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false
