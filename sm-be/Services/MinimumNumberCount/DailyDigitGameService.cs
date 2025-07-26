@@ -151,21 +151,32 @@ namespace sm_be.Services.MinimumNumberCount
 
         public async Task ProcessDailyDigitWinnersAsync()
         {
-            var today = DateTime.UtcNow.Date;
+            // Process winners for yesterday's game (after the day has ended)
+            var yesterday = DateTime.UtcNow.Date.AddDays(-1);
             var dailyDigitGame = await _context.DailyDigitGames
                 .Include(d => d.PlayerDigitEntries)
-                .FirstOrDefaultAsync(d => d.Date == today);
+                .FirstOrDefaultAsync(d => d.Date == yesterday);
 
-            if (dailyDigitGame == null || dailyDigitGame.IsCompleted) return;
+            if (dailyDigitGame == null)
+            {
+                _logger.LogInformation($"No daily digit game found for {yesterday:yyyy-MM-dd}");
+                return;
+            }
 
-            // Get digit counts
-            var digitCounts = await GetTodaysDigitCountsAsync();
+            if (dailyDigitGame.IsCompleted)
+            {
+                _logger.LogInformation($"Daily digit game for {yesterday:yyyy-MM-dd} already completed");
+                return;
+            }
+
+            // Get digit counts for yesterday
+            var digitCounts = await GetDigitCountsForDateAsync(yesterday);
             
             // Find the digit(s) with the lowest count (excluding digits with 0 entries)
             var nonZeroCounts = digitCounts.Where(dc => dc.Value > 0);
             if (!nonZeroCounts.Any())
             {
-                _logger.LogInformation($"No entries found for {today:yyyy-MM-dd}, no winners to process");
+                _logger.LogInformation($"No entries found for {yesterday:yyyy-MM-dd}, no winners to process");
                 return;
             }
 
@@ -193,7 +204,32 @@ namespace sm_be.Services.MinimumNumberCount
 
             await _context.SaveChangesAsync();
             
-            _logger.LogInformation($"Processed daily digit game for {today:yyyy-MM-dd}. Winning digit: {winningDigit}, Winners: {winners.Count}, Min count: {minCount}");
+            _logger.LogInformation($"Processed daily digit game for {yesterday:yyyy-MM-dd}. Winning digit: {winningDigit}, Winners: {winners.Count}, Min count: {minCount}");
+        }
+
+        // Add this helper method
+        private async Task<Dictionary<int, int>> GetDigitCountsForDateAsync(DateTime date)
+        {
+            var entries = await _context.PlayerDigitEntries
+                .Where(pde => pde.DailyDigitGame.Date == date)
+                .GroupBy(pde => pde.SelectedDigit)
+                .Select(g => new { Digit = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            // Initialize all digits (0-9) with count 0
+            var digitCounts = new Dictionary<int, int>();
+            for (int i = 0; i <= 9; i++)
+            {
+                digitCounts[i] = 0;
+            }
+
+            // Update with actual counts
+            foreach (var entry in entries)
+            {
+                digitCounts[entry.Digit] = entry.Count;
+            }
+
+            return digitCounts;
         }
 
         public async Task<List<DailyDigitGame>> GetRecentGamesAsync(int count = 10)
