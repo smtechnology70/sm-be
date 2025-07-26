@@ -226,7 +226,6 @@ namespace sm_be.Controllers.MinimumNumberCount
         }
 
         [HttpPost("process-winners")]
-        //[Authorize] // Remove this if you want to test without auth
         public async Task<IActionResult> ProcessWinnersManually()
         {
             try
