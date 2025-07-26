@@ -85,24 +85,13 @@ namespace SM_BE.Hubs
                         GuessedNumber = playerEntry.GuessedNumber,
                         IsWinner = playerEntry.IsWinner,
                         EntryTime = playerEntry.EntryTime,
-                        Message = playerEntry.IsWinner ? "Congratulations! You guessed correctly!" : "Guess submitted successfully!"
+                        Message =  "Guess submitted successfully!"
                     });
-
-                    // If it's a winner, notify all players in the game
-                    if (playerEntry.IsWinner)
-                    {
-                        await Clients.Group("DailyNumberGame").SendAsync("NewWinner", new
-                        {
-                            Username = playerEntry.User.Username,
-                            GuessedNumber = playerEntry.GuessedNumber,
-                            EntryTime = playerEntry.EntryTime
-                        });
-                    }
 
                     // Update game statistics for all players
                     await BroadcastGameStatistics();
 
-                    _logger.LogInformation($"Player {playerId} submitted guess {guessedNumber}. Winner: {playerEntry.IsWinner}");
+                    _logger.LogInformation($"Player {playerId} submitted guess {guessedNumber}.");
                 }
             }
             catch (Exception ex)

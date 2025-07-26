@@ -225,6 +225,30 @@ namespace sm_be.Controllers.MinimumNumberCount
             }
         }
 
+        [HttpPost("process-winners")]
+        //[Authorize] // Remove this if you want to test without auth
+        public async Task<IActionResult> ProcessWinnersManually()
+        {
+            try
+            {
+                _logger.LogInformation("Manual winner processing triggered");
+                await _dailyDigitGameService.ProcessDailyDigitWinnersAsync();
+                
+                return Ok(new { 
+                    message = "Winners processed successfully",
+                    timestamp = DateTime.UtcNow 
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error manually processing winners");
+                return StatusCode(500, new { 
+                    message = "Error processing winners",
+                    error = ex.Message 
+                });
+            }
+        }
+
         private int? GetUserIdFromClaims()
         {
             var userIdClaim = User.FindFirst("userId");
