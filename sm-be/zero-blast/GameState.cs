@@ -20,7 +20,7 @@ namespace SM_BE.Hubs
         {
             var rnd = new Random();
             var total = 49;
-            var zeros = total * 30 / 100;        // 15 zeros
+            var zeros = total * 10 / 100;        // 4 or 5 zeros
             var nums = Enumerable.Range(1, 999)
                                    .OrderBy(_ => rnd.Next())
                                    .Take(total - zeros)

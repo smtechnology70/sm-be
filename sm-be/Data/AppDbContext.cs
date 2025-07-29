@@ -19,6 +19,12 @@ namespace SM_BE.Data
         public DbSet<DailyDigitGame> DailyDigitGames { get; set; }
         public DbSet<PlayerDigitEntry> PlayerDigitEntries { get; set; }
         public DbSet<UserProfile> UserProfiles { get; set; }
+        
+        // Money transaction entity
+        public DbSet<MoneyTransaction> MoneyTransactions { get; set; }
+        
+        // Game records entity
+        public DbSet<Game> Games { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -197,6 +203,89 @@ namespace SM_BE.Data
                 entity.Property(e => e.InGameMoney).HasColumnName("in_game_money").HasColumnType("decimal(18,2)");
             });
 
+            // Configure MoneyTransaction entity
+            modelBuilder.Entity<MoneyTransaction>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                
+                // Indexes for common queries
+                entity.HasIndex(e => e.UserId).HasDatabaseName("IX_MoneyTransactions_UserId");
+                entity.HasIndex(e => e.CreatedAt).HasDatabaseName("IX_MoneyTransactions_CreatedAt");
+                entity.HasIndex(e => e.TransactionType).HasDatabaseName("IX_MoneyTransactions_TransactionType");
+                entity.HasIndex(e => e.GameType).HasDatabaseName("IX_MoneyTransactions_GameType");
+                entity.HasIndex(e => e.ReferenceId).HasDatabaseName("IX_MoneyTransactions_ReferenceId");
+                entity.HasIndex(e => new { e.UserId, e.CreatedAt }).HasDatabaseName("IX_MoneyTransactions_UserId_CreatedAt");
+                
+                // Column names and constraints
+                entity.Property(e => e.UserId).HasColumnName("user_id");
+                entity.Property(e => e.Amount).HasColumnName("amount").HasColumnType("decimal(18,2)");
+                entity.Property(e => e.TransactionDirection).HasMaxLength(20).HasColumnName("transaction_direction");
+                entity.Property(e => e.MoneyType).HasMaxLength(20).HasColumnName("money_type");
+                entity.Property(e => e.TransactionType).HasMaxLength(100).HasColumnName("transaction_type");
+                entity.Property(e => e.Description).HasMaxLength(255).HasColumnName("description");
+                entity.Property(e => e.GameType).HasMaxLength(50).HasColumnName("game_type");
+                entity.Property(e => e.GameId).HasMaxLength(100).HasColumnName("game_id");
+                entity.Property(e => e.BalanceAfter).HasColumnName("balance_after").HasColumnType("decimal(18,2)");
+                entity.Property(e => e.InGameMoneyAfter).HasColumnName("in_game_money_after").HasColumnType("decimal(18,2)");
+                entity.Property(e => e.RealMoneyAfter).HasColumnName("real_money_after").HasColumnType("decimal(18,2)");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.ReferenceId).HasMaxLength(50).HasColumnName("reference_id");
+                
+                // Configure relationship
+                entity.HasOne(e => e.User)
+                      .WithMany()
+                      .HasForeignKey(e => e.UserId)
+                      .OnDelete(DeleteBehavior.Cascade)
+                      .HasConstraintName("FK_MoneyTransactions_Users");
+            });
+
+            // Configure Game entity
+            modelBuilder.Entity<Game>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                
+                // Indexes for common queries
+                entity.HasIndex(e => e.GameId).IsUnique().HasDatabaseName("IX_Games_GameId");
+                entity.HasIndex(e => e.GameType).HasDatabaseName("IX_Games_GameType");
+                entity.HasIndex(e => e.Player1Id).HasDatabaseName("IX_Games_Player1Id");
+                entity.HasIndex(e => e.Player2Id).HasDatabaseName("IX_Games_Player2Id");
+                entity.HasIndex(e => e.WinnerId).HasDatabaseName("IX_Games_WinnerId");
+                entity.HasIndex(e => e.StartedAt).HasDatabaseName("IX_Games_StartedAt");
+                entity.HasIndex(e => e.Status).HasDatabaseName("IX_Games_Status");
+                
+                // Column names and constraints
+                entity.Property(e => e.GameId).HasMaxLength(100).HasColumnName("game_id");
+                entity.Property(e => e.GameType).HasMaxLength(50).HasColumnName("game_type");
+                entity.Property(e => e.Player1Id).HasColumnName("player1_id");
+                entity.Property(e => e.Player2Id).HasColumnName("player2_id");
+                entity.Property(e => e.WinnerId).HasColumnName("winner_id");
+                entity.Property(e => e.Status).HasMaxLength(20).HasColumnName("status");
+                entity.Property(e => e.EntryFee).HasColumnName("entry_fee").HasColumnType("decimal(18,2)");
+                entity.Property(e => e.WinAmount).HasColumnName("win_amount").HasColumnType("decimal(18,2)");
+                entity.Property(e => e.StartedAt).HasColumnName("started_at");
+                entity.Property(e => e.FinishedAt).HasColumnName("finished_at");
+                entity.Property(e => e.GameData).HasMaxLength(500).HasColumnName("game_data");
+                
+                // Configure relationships
+                entity.HasOne(e => e.Player1)
+                      .WithMany()
+                      .HasForeignKey(e => e.Player1Id)
+                      .OnDelete(DeleteBehavior.Restrict)
+                      .HasConstraintName("FK_Games_Player1");
+                
+                entity.HasOne(e => e.Player2)
+                      .WithMany()
+                      .HasForeignKey(e => e.Player2Id)
+                      .OnDelete(DeleteBehavior.Restrict)
+                      .HasConstraintName("FK_Games_Player2");
+                
+                entity.HasOne(e => e.Winner)
+                      .WithMany()
+                      .HasForeignKey(e => e.WinnerId)
+                      .OnDelete(DeleteBehavior.Restrict)
+                      .HasConstraintName("FK_Games_Winner");
+            });
+
             // Configure table names (optional, for better naming)
             modelBuilder.Entity<DailyNumber>().ToTable("daily_numbers");
             modelBuilder.Entity<PlayerEntry>().ToTable("player_entries");
@@ -204,6 +293,8 @@ namespace SM_BE.Data
             modelBuilder.Entity<DailyDigitGame>().ToTable("daily_digit_games");
             modelBuilder.Entity<PlayerDigitEntry>().ToTable("player_digit_entries");
             modelBuilder.Entity<UserProfile>().ToTable("user_profiles");
+            modelBuilder.Entity<MoneyTransaction>().ToTable("money_transactions");
+            modelBuilder.Entity<Game>().ToTable("games");
         }
     }
 }
