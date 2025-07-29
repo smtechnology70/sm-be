@@ -1,6 +1,10 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using SM_BE.Services;
+using SM_BE.Dto;
+using SM_BE.Data;
+using SM_BE.Models;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -17,10 +21,15 @@ namespace SM_BE.Hubs
         private static readonly Queue<WaitingPlayer> _waitingQueue = new();
         private static readonly Dictionary<string, int> _playerConnections = new(); // ConnectionId -> PlayerId
         private readonly IJwtService _jwtService;
+        private readonly IMoneyTransactionService _moneyTransactionService;
+        private readonly AppDbContext _dbContext;
+        private const decimal GAME_ENTRY_FEE = 50m;
 
-        public GameHub(IJwtService jwtService)
+        public GameHub(IJwtService jwtService, IMoneyTransactionService moneyTransactionService, AppDbContext dbContext)
         {
             _jwtService = jwtService;
+            _moneyTransactionService = moneyTransactionService;
+            _dbContext = dbContext;
         }
 
         // ➊ Player joins matchmaking queue
@@ -40,6 +49,16 @@ namespace SM_BE.Hubs
 
                 Console.WriteLine($"Player {playerId} joining matchmaking");
 
+                // Check if player has sufficient funds
+                var hasSufficientFunds = await _moneyTransactionService.HasSufficientFundsAsync(playerId.Value, GAME_ENTRY_FEE);
+                if (!hasSufficientFunds)
+                {
+                    var userMoney = await _moneyTransactionService.GetUserMoneyAsync(playerId.Value);
+                    await Clients.Caller.SendAsync("InsufficientFunds", 
+                        $"Insufficient funds to join the game. Required: ${GAME_ENTRY_FEE}, Available: ${userMoney?.TotalMoney ?? 0}");
+                    return;
+                }
+
                 // Check if player is already in queue
                 if (_waitingQueue.Any(p => p.PlayerId == playerId.Value))
                 {
@@ -54,12 +73,24 @@ namespace SM_BE.Hubs
                     return;
                 }
 
+                // Generate a temporary game ID for the entry fee transaction
+                var tempGameId = Guid.NewGuid().ToString();
+
+                // Deduct entry fee with the temporary game ID
+                var deductionResult = await _moneyTransactionService.ProcessGameEntryAsync(playerId.Value, GAME_ENTRY_FEE, "zero-blast", tempGameId);
+                if (!deductionResult.Success)
+                {
+                    await Clients.Caller.SendAsync("Error", $"Failed to process entry fee: {deductionResult.Message}");
+                    return;
+                }
+
                 // Add player to waiting queue
                 var waitingPlayer = new WaitingPlayer
                 {
                     PlayerId = playerId.Value,
                     ConnectionId = Context.ConnectionId,
-                    JoinedAt = DateTime.UtcNow
+                    JoinedAt = DateTime.UtcNow,
+                    TempGameId = tempGameId // Store temp game ID for potential refund
                 };
 
                 _waitingQueue.Enqueue(waitingPlayer);
@@ -67,8 +98,14 @@ namespace SM_BE.Hubs
 
                 Console.WriteLine($"Player {playerId} added to queue. Queue size: {_waitingQueue.Count}");
 
-                // Notify player they're in queue
+                // Notify player they're in queue and about the deduction
                 await Clients.Caller.SendAsync("MatchmakingStatus", "Searching for opponent...", _waitingQueue.Count);
+                await Clients.Caller.SendAsync("MoneyDeducted", new
+                {
+                    Amount = GAME_ENTRY_FEE,
+                    RemainingMoney = deductionResult.TotalRemainingMoney,
+                    Message = "Entry fee deducted successfully"
+                });
 
                 // Try to create a match
                 await TryCreateMatch();
@@ -90,6 +127,26 @@ namespace SM_BE.Hubs
                 {
                     await Clients.Caller.SendAsync("Error", "Invalid or missing authentication token");
                     return;
+                }
+
+                // Check if player is in queue and refund entry fee
+                var playerInQueue = _waitingQueue.FirstOrDefault(p => p.PlayerId == playerId.Value);
+                if (playerInQueue != null)
+                {
+                    // Refund the entry fee with the same temp game ID for tracking
+                    var refundResult = await _moneyTransactionService.AddMoneyAsync(
+                        playerId.Value, GAME_ENTRY_FEE, MoneyType.InGameMoney, "game_entry_refund", 
+                        "Refund for leaving matchmaking queue", "zero-blast", playerInQueue.TempGameId);
+
+                    if (refundResult.Success)
+                    {
+                        await Clients.Caller.SendAsync("MoneyRefunded", new
+                        {
+                            Amount = GAME_ENTRY_FEE,
+                            NewBalance = refundResult.TotalMoney,
+                            Message = "Entry fee refunded"
+                        });
+                    }
                 }
 
                 // Remove from queue
@@ -182,11 +239,32 @@ namespace SM_BE.Hubs
                 // Log successful move
                 Console.WriteLine($"Player {playerId} (Player{playerNumber}) moved in game {room.GameId}, index {index}");
 
-                // If game is finished, log the winner
+                // If game is finished, handle winner rewards and record game completion
                 if (game.Status == GameStatus.Finished)
                 {
                     var winnerPlayerId = game.Winner == 1 ? room.Player1Id : room.Player2Id;
                     Console.WriteLine($"Game {room.GameId} finished! Winner: Player ID {winnerPlayerId}");
+
+                    // Update game record in database
+                    await UpdateGameRecord(room.GameId, winnerPlayerId, "Finished");
+
+                    // Award double the entry fee to the winner as real money with game ID
+                    var winAmount = GAME_ENTRY_FEE * 2;
+                    var winResult = await _moneyTransactionService.ProcessGameWinAsync(winnerPlayerId, winAmount, "zero-blast", room.GameId);
+
+                    if (winResult.Success)
+                    {
+                        // Notify winner about the reward
+                        var winnerConnectionId = game.Winner == 1 ? room.Player1ConnectionId : room.Player2ConnectionId;
+                        await Clients.Client(winnerConnectionId).SendAsync("GameWinReward", new
+                        {
+                            WinAmount = winAmount,
+                            NewBalance = winResult.TotalMoney,
+                            Message = $"Congratulations! You won ${winAmount}!"
+                        });
+
+                        Console.WriteLine($"Winner {winnerPlayerId} received ${winAmount} reward for game {room.GameId}");
+                    }
                 }
             }
             catch (Exception ex)
@@ -227,6 +305,9 @@ namespace SM_BE.Hubs
             gameState.SetPlayers(player1.PlayerId, player2.PlayerId);
             _games[gameId] = gameState;
 
+            // Record game in database
+            await CreateGameRecord(gameId, player1.PlayerId, player2.PlayerId, GAME_ENTRY_FEE);
+
             // Add both players to SignalR group
             await Groups.AddToGroupAsync(player1.ConnectionId, gameId);
             await Groups.AddToGroupAsync(player2.ConnectionId, gameId);
@@ -244,6 +325,56 @@ namespace SM_BE.Hubs
 
             // Update queue status for remaining players
             await UpdateQueueStatus();
+        }
+
+        private async Task CreateGameRecord(string gameId, int player1Id, int player2Id, decimal entryFee)
+        {
+            try
+            {
+                var game = new Game
+                {
+                    GameId = gameId,
+                    GameType = "zero-blast",
+                    Player1Id = player1Id,
+                    Player2Id = player2Id,
+                    Status = "Playing",
+                    EntryFee = entryFee,
+                    StartedAt = DateTime.UtcNow
+                };
+
+                _dbContext.Games.Add(game);
+                await _dbContext.SaveChangesAsync();
+
+                Console.WriteLine($"Game record created for game {gameId}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error creating game record for {gameId}: {ex}");
+            }
+        }
+
+        private async Task UpdateGameRecord(string gameId, int winnerId, string status)
+        {
+            try
+            {
+                var game = await _dbContext.Games.FirstOrDefaultAsync(g => g.GameId == gameId);
+                if (game != null)
+                {
+                    game.WinnerId = winnerId;
+                    game.Status = status;
+                    game.FinishedAt = DateTime.UtcNow;
+                    game.WinAmount = GAME_ENTRY_FEE * 2;
+
+                    _dbContext.Games.Update(game);
+                    await _dbContext.SaveChangesAsync();
+
+                    Console.WriteLine($"Game record updated for game {gameId}, winner: {winnerId}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating game record for {gameId}: {ex}");
+            }
         }
 
         private async Task BroadcastGameState(string gameId)
@@ -279,7 +410,12 @@ namespace SM_BE.Hubs
                 
                 // Enhanced winner information
                 WinnerPlayerId = winnerPlayerId, // The actual player ID of the winner
-                IsGameFinished = game.Status == GameStatus.Finished
+                IsGameFinished = game.Status == GameStatus.Finished,
+                
+                // Game details
+                GameId = gameId, // Include game ID in the state
+                EntryFee = GAME_ENTRY_FEE,
+                WinAmount = GAME_ENTRY_FEE * 2
             };
 
             // Send to each player with personalized turn and winner info
@@ -309,7 +445,8 @@ namespace SM_BE.Hubs
                     WinnerPlayerId = winnerPlayerId.Value,
                     WinnerPlayerNumber = game.Winner.Value,
                     GameId = gameId,
-                    EndTime = DateTime.UtcNow
+                    EndTime = DateTime.UtcNow,
+                    WinAmount = GAME_ENTRY_FEE * 2
                 });
             }
         }
@@ -430,6 +567,25 @@ namespace SM_BE.Hubs
             // Remove from player connections
             if (_playerConnections.TryGetValue(Context.ConnectionId, out var playerId))
             {
+                // Check if player was in queue and refund entry fee
+                var playerInQueue = _waitingQueue.FirstOrDefault(p => p.PlayerId == playerId);
+                if (playerInQueue != null)
+                {
+                    try
+                    {
+                        // Refund the entry fee with the temp game ID for tracking
+                        await _moneyTransactionService.AddMoneyAsync(
+                            playerId, GAME_ENTRY_FEE, MoneyType.InGameMoney, "game_entry_refund", 
+                            "Refund due to disconnection during matchmaking", "zero-blast", playerInQueue.TempGameId);
+                        
+                        Console.WriteLine($"Refunded ${GAME_ENTRY_FEE} to player {playerId} due to disconnection for temp game {playerInQueue.TempGameId}");
+                    }
+                    catch (Exception refundEx)
+                    {
+                        Console.WriteLine($"Error refunding money to player {playerId}: {refundEx}");
+                    }
+                }
+
                 // Remove from waiting queue if present
                 RemovePlayerFromQueue(playerId);
                 _playerConnections.Remove(Context.ConnectionId);
@@ -447,6 +603,9 @@ namespace SM_BE.Hubs
 
             if (room != null)
             {
+                // Update game record as abandoned
+                await UpdateGameRecord(room.GameId, 0, "Abandoned");
+
                 // Notify the other player
                 var otherConnectionId = room.Player1ConnectionId == Context.ConnectionId 
                     ? room.Player2ConnectionId 
@@ -476,6 +635,7 @@ namespace SM_BE.Hubs
         public int PlayerId { get; set; }
         public string ConnectionId { get; set; } = string.Empty;
         public DateTime JoinedAt { get; set; }
+        public string TempGameId { get; set; } = string.Empty; // For tracking refunds
     }
 
     public class GameRoom

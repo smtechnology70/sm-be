@@ -17,12 +17,21 @@ namespace SM_BE.Controllers
         private readonly AppDbContext _context;
         private readonly IJwtService _jwtService;
         private readonly IConfiguration _configuration;
+        private readonly IUserProfileService _userProfileService;
+        private readonly ILogger<AuthController> _logger;
 
-        public AuthController(AppDbContext context, IJwtService jwtService, IConfiguration configuration)
+        public AuthController(
+            AppDbContext context, 
+            IJwtService jwtService, 
+            IConfiguration configuration,
+            IUserProfileService userProfileService,
+            ILogger<AuthController> logger)
         {
             _context = context;
             _jwtService = jwtService;
             _configuration = configuration;
+            _userProfileService = userProfileService;
+            _logger = logger;
         }
 
         [HttpPost("register")]
@@ -38,20 +47,60 @@ namespace SM_BE.Controllers
             if (existingUser != null)
                 return BadRequest("Username already exists.");
 
-            // Hash the password before storing
-            register.Password = ComputeSha256Hash(register.Password);
-            User user = new User
+            // Check if email already exists (if provided)
+            if (!string.IsNullOrEmpty(register.Email))
             {
-                Username = register.Username,
-                Name = register.Name,
-                PasswordHash = register.Password
-            };
+                var existingProfile = await _context.UserProfiles
+                    .FirstOrDefaultAsync(up => up.Email == register.Email);
+                
+                if (existingProfile != null)
+                    return BadRequest("Email address is already registered.");
+            }
 
-            // Save user to DB
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // Hash the password before storing
+                var hashedPassword = ComputeSha256Hash(register.Password);
+                var user = new User
+                {
+                    Username = register.Username,
+                    Name = register.Name,
+                    PasswordHash = hashedPassword
+                };
 
-            return Ok("User registered successfully!");
+                // Save user to DB
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+
+                // Create user profile automatically
+                var createProfileDto = new CreateUserProfileDto
+                {
+                    Email = register.Email,
+                    FirstName = register.FirstName,
+                    LastName = register.LastName,
+                    PreferredLanguage = "en"
+                };
+
+                var userProfile = await _userProfileService.CreateUserProfileAsync(user.Id, createProfileDto);
+
+                await transaction.CommitAsync();
+
+                _logger.LogInformation($"User {user.Username} (ID: {user.Id}) registered successfully with profile created");
+
+                return Ok(new 
+                { 
+                    message = "User registered successfully!",
+                    userId = user.Id,
+                    profileId = userProfile.Id
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Error during user registration");
+                return StatusCode(500, "An error occurred during registration. Please try again.");
+            }
         }
 
         [HttpPost("login")]
@@ -83,14 +132,37 @@ namespace SM_BE.Controllers
 
             await _context.SaveChangesAsync();
 
+            // Update last active in user profile if exists
+            try
+            {
+                await _userProfileService.UpdateLastActiveAsync(existingUser.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, $"Could not update last active for user {existingUser.Id}");
+                // Don't fail login if profile update fails
+            }
+
             var accessTokenExpiry = DateTime.UtcNow.AddMinutes(
                 int.Parse(_configuration.GetSection("JwtSettings")["AccessTokenExpirationMinutes"] ?? "30"));
+
+            // Get user profile info for response
+            var userProfile = await _userProfileService.GetUserProfileAsync(existingUser.Id);
 
             var response = new AuthResponseDto
             {
                 AccessToken = accessToken,
                 RefreshToken = refreshToken,
                 AccessTokenExpiration = accessTokenExpiry,
+                User = new UserDto
+                {
+                    Id = existingUser.Id,
+                    Username = existingUser.Username!,
+                    Name = existingUser.Name!,
+                    Email = userProfile?.Email,
+                    ProfilePictureUrl = userProfile?.ProfilePictureUrl,
+                    IsEmailVerified = userProfile?.IsEmailVerified ?? false
+                }
             };
 
             return Ok(response);
@@ -98,25 +170,51 @@ namespace SM_BE.Controllers
 
         [HttpGet("me")]
         [Authorize]
-        public IActionResult GetCurrentUser()
+        public async Task<IActionResult> GetCurrentUser()
         {
-            // Get user ID and username from JWT claims
-            var userIdClaim = User.FindFirst("userId");
-            var userNameClaim = User.FindFirst("userName");
-
-            if (userIdClaim == null || userNameClaim == null)
-                return Unauthorized("Invalid token claims.");
-
-            if (!int.TryParse(userIdClaim.Value, out int userId))
-                return Unauthorized("Invalid user ID in token.");
-
-            var response = new
+            try
             {
-                UserId = userId,
-                UserName = userNameClaim.Value
-            };
+                // Get user ID and username from JWT claims
+                var userIdClaim = User.FindFirst("userId");
+                var userNameClaim = User.FindFirst("userName");
 
-            return Ok(response);
+                if (userIdClaim == null || userNameClaim == null)
+                    return Unauthorized("Invalid token claims.");
+
+                if (!int.TryParse(userIdClaim.Value, out int userId))
+                    return Unauthorized("Invalid user ID in token.");
+
+                // Get user with profile info
+                var user = await _context.Users.FindAsync(userId);
+                if (user == null)
+                    return NotFound("User not found.");
+
+                var userProfile = await _userProfileService.GetUserProfileAsync(userId);
+
+                var response = new
+                {
+                    UserId = userId,
+                    UserName = userNameClaim.Value,
+                    Name = user.Name,
+                    Profile = userProfile != null ? new
+                    {
+                        Email = userProfile.Email,
+                        FirstName = userProfile.FirstName,
+                        LastName = userProfile.LastName,
+                        ProfilePictureUrl = userProfile.ProfilePictureUrl,
+                        IsProfileComplete = userProfile.IsProfileComplete,
+                        Level = userProfile.GameStats?.Level ?? 1,
+                        TotalWins = userProfile.GameStats?.TotalWins ?? 0
+                    } : null
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting current user info");
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         [HttpPost("refresh")]
@@ -145,11 +243,23 @@ namespace SM_BE.Controllers
             var accessTokenExpiry = DateTime.UtcNow.AddMinutes(
                 int.Parse(_configuration.GetSection("JwtSettings")["AccessTokenExpirationMinutes"] ?? "30"));
 
+            // Get updated user profile info
+            var userProfile = await _userProfileService.GetUserProfileAsync(user.Id);
+
             var response = new AuthResponseDto
             {
                 AccessToken = newAccessToken,
                 RefreshToken = newRefreshToken,
                 AccessTokenExpiration = accessTokenExpiry,
+                User = new UserDto
+                {
+                    Id = user.Id,
+                    Username = user.Username!,
+                    Name = user.Name!,
+                    Email = userProfile?.Email,
+                    ProfilePictureUrl = userProfile?.ProfilePictureUrl,
+                    IsEmailVerified = userProfile?.IsEmailVerified ?? false
+                }
             };
 
             return Ok(response);

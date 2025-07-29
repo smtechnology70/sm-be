@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SM_BE.Data;
 
@@ -10,98 +11,16 @@ using SM_BE.Data;
 namespace sm_be.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250727075531_AddUserProfileModel")]
+    partial class AddUserProfileModel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "8.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
-
-            modelBuilder.Entity("SM_BE.Models.Game", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("EntryFee")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("entry_fee");
-
-                    b.Property<DateTime?>("FinishedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("finished_at");
-
-                    b.Property<string>("GameData")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)")
-                        .HasColumnName("game_data");
-
-                    b.Property<string>("GameId")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)")
-                        .HasColumnName("game_id");
-
-                    b.Property<string>("GameType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)")
-                        .HasColumnName("game_type");
-
-                    b.Property<int>("Player1Id")
-                        .HasColumnType("int")
-                        .HasColumnName("player1_id");
-
-                    b.Property<int>("Player2Id")
-                        .HasColumnType("int")
-                        .HasColumnName("player2_id");
-
-                    b.Property<DateTime>("StartedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("started_at");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)")
-                        .HasColumnName("status");
-
-                    b.Property<decimal?>("WinAmount")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("win_amount");
-
-                    b.Property<int?>("WinnerId")
-                        .HasColumnType("int")
-                        .HasColumnName("winner_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("GameId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_Games_GameId");
-
-                    b.HasIndex("GameType")
-                        .HasDatabaseName("IX_Games_GameType");
-
-                    b.HasIndex("Player1Id")
-                        .HasDatabaseName("IX_Games_Player1Id");
-
-                    b.HasIndex("Player2Id")
-                        .HasDatabaseName("IX_Games_Player2Id");
-
-                    b.HasIndex("StartedAt")
-                        .HasDatabaseName("IX_Games_StartedAt");
-
-                    b.HasIndex("Status")
-                        .HasDatabaseName("IX_Games_Status");
-
-                    b.HasIndex("WinnerId")
-                        .HasDatabaseName("IX_Games_WinnerId");
-
-                    b.ToTable("games", (string)null);
-                });
 
             modelBuilder.Entity("SM_BE.Models.Lottery.DailyNumber", b =>
                 {
@@ -163,97 +82,6 @@ namespace sm_be.Migrations
                         .HasDatabaseName("IX_PlayerEntries_UserId_DailyNumberId");
 
                     b.ToTable("player_entries", (string)null);
-                });
-
-            modelBuilder.Entity("SM_BE.Models.MoneyTransaction", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("amount");
-
-                    b.Property<decimal>("BalanceAfter")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("balance_after");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("description");
-
-                    b.Property<string>("GameId")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)")
-                        .HasColumnName("game_id");
-
-                    b.Property<string>("GameType")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)")
-                        .HasColumnName("game_type");
-
-                    b.Property<decimal>("InGameMoneyAfter")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("in_game_money_after");
-
-                    b.Property<string>("MoneyType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)")
-                        .HasColumnName("money_type");
-
-                    b.Property<decimal>("RealMoneyAfter")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("real_money_after");
-
-                    b.Property<string>("ReferenceId")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)")
-                        .HasColumnName("reference_id");
-
-                    b.Property<string>("TransactionDirection")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)")
-                        .HasColumnName("transaction_direction");
-
-                    b.Property<string>("TransactionType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)")
-                        .HasColumnName("transaction_type");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedAt")
-                        .HasDatabaseName("IX_MoneyTransactions_CreatedAt");
-
-                    b.HasIndex("GameType")
-                        .HasDatabaseName("IX_MoneyTransactions_GameType");
-
-                    b.HasIndex("ReferenceId")
-                        .HasDatabaseName("IX_MoneyTransactions_ReferenceId");
-
-                    b.HasIndex("TransactionType")
-                        .HasDatabaseName("IX_MoneyTransactions_TransactionType");
-
-                    b.HasIndex("UserId")
-                        .HasDatabaseName("IX_MoneyTransactions_UserId");
-
-                    b.HasIndex("UserId", "CreatedAt")
-                        .HasDatabaseName("IX_MoneyTransactions_UserId_CreatedAt");
-
-                    b.ToTable("money_transactions", (string)null);
                 });
 
             modelBuilder.Entity("SM_BE.Models.User", b =>
@@ -613,35 +441,6 @@ namespace sm_be.Migrations
                     b.ToTable("player_digit_entries", (string)null);
                 });
 
-            modelBuilder.Entity("SM_BE.Models.Game", b =>
-                {
-                    b.HasOne("SM_BE.Models.User", "Player1")
-                        .WithMany()
-                        .HasForeignKey("Player1Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("FK_Games_Player1");
-
-                    b.HasOne("SM_BE.Models.User", "Player2")
-                        .WithMany()
-                        .HasForeignKey("Player2Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("FK_Games_Player2");
-
-                    b.HasOne("SM_BE.Models.User", "Winner")
-                        .WithMany()
-                        .HasForeignKey("WinnerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("FK_Games_Winner");
-
-                    b.Navigation("Player1");
-
-                    b.Navigation("Player2");
-
-                    b.Navigation("Winner");
-                });
-
             modelBuilder.Entity("SM_BE.Models.Lottery.PlayerEntry", b =>
                 {
                     b.HasOne("SM_BE.Models.Lottery.DailyNumber", "DailyNumber")
@@ -659,18 +458,6 @@ namespace sm_be.Migrations
                         .HasConstraintName("FK_PlayerEntries_Users");
 
                     b.Navigation("DailyNumber");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("SM_BE.Models.MoneyTransaction", b =>
-                {
-                    b.HasOne("SM_BE.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_MoneyTransactions_Users");
 
                     b.Navigation("User");
                 });

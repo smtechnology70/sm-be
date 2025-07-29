@@ -32,6 +32,8 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IDailyNumberService, DailyNumberService>();
 builder.Services.AddScoped<IDailyDigitGameService, DailyDigitGameService>();
+builder.Services.AddScoped<IUserProfileService, UserProfileService>(); // <-- Add this line
+builder.Services.AddScoped<IMoneyTransactionService, MoneyTransactionService>();
 
 // Add background service for daily number management
 builder.Services.AddHostedService<DailyNumberBackgroundService>();
