@@ -34,6 +34,7 @@ builder.Services.AddScoped<IDailyNumberService, DailyNumberService>();
 builder.Services.AddScoped<IDailyDigitGameService, DailyDigitGameService>();
 builder.Services.AddScoped<IUserProfileService, UserProfileService>(); // <-- Add this line
 builder.Services.AddScoped<IMoneyTransactionService, MoneyTransactionService>();
+builder.Services.AddScoped<IGameService, GameService>();
 
 // Add background service for daily number management
 builder.Services.AddHostedService<DailyNumberBackgroundService>();
